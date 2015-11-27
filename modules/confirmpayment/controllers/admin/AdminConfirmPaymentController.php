@@ -1,45 +1,50 @@
 <?php
 
-
-if (!defined('_PS_VERSION_'))
-	exit;
-
-if (defined('_PS_ADMIN_DIR_') === false)
-	define('_PS_ADMIN_DIR_', _PS_ROOT_DIR_.'/admin/');
-
-include_once dirname(__FILE__).'/../../classes/TableConfirmPayment.php';
-
-class AdminConfirmPaymentController extends ModuleAdminController
+class AdminConfirmPaymentController extends AdminController
 {
-	public $html = '';
+    protected $delete_mode;
+
+    protected $_defaultOrderBy = 'date_add';
+    protected $_defaultOrderWay = 'DESC';
+    protected $can_add_confirmpayment = true;
+    protected static $meaning_status = array();
 
 	public function __construct()
 	{
-		$this->name = 'confirmpayment';
-		$this->tab = 'administration';
-		$this->version = '1.0';
-		$this->author = 'PT.SUPRABAKTI MANDIRI';
 		$this->bootstrap = true;
-		$this->need_instance = 0;
-		$this->controllers = array('callback');
-		$this->need_instance = true;
-		$this->table = 'confirmpayment';
+        $this->name ='confirmpayment';
+        $this->table = 'confirmpayment';
         $this->className = 'ConfirmPayment';
-		$this->required_database = true;
-		$this->required_fields = array('newsletter','optin');
+        $this->displayName='Konfirmasi Pembayaran';
+        $this->deleted = true;
+        $this->explicitSelect = true;
 
-		parent::__construct();
+        parent::__construct();
 
-		$this->displayName = $this->l('Confirm Payment PT.Suprabakti Mandiri');
-		$this->description = $this->l('Confirm Payment PT.Suprabakti Mandiri');
-		$this->ps_versions_compliancy = array('min' => '1.6', 'max' => _PS_VERSION_);
+	}
+
+	public function setMedia()
+	{
+		return parent::setMedia();
 	}
 
 
-	public function getContent()
+	public function initToolBarTitle()
 	{
-		$id_confirmpayment = (int)Tools::getValue('id_confirmpayment');
+		$this->toolbar_title[] = $this->l('Administration');
+		$this->toolbar_title[] = $this->l('Konfirmasi Pembayaran');
+	}
 
+	public function initPageHeaderToolbar()
+	{
+		parent::initPageHeaderToolbar();
+		unset($this->page_header_toolbar_btn['back']);
+
+	}
+
+ 	public function initContent()
+    {
+    	$id_confirmpayment = (int)Tools::getValue('id_confirmpayment');
 		if (Tools::isSubmit('saveconfirmpayment'))
 		{	
 			if ($this->processSaveConfirmPayment())
@@ -47,26 +52,20 @@ class AdminConfirmPaymentController extends ModuleAdminController
 			else
 				return $this->html . $this->renderForm();
 		}
-		elseif (Tools::isSubmit('updateconfirmpayment') || Tools::isSubmit('addconfirmpayment'))
-		{
-			$this->html .= $this->renderForm();
-			return $this->html;
-		}
-		else if (Tools::isSubmit('deleteconfirmpayment'))
-		{
-			$chandra = new TableConfirmPayment((int)$id_confirmpayment);
-			$chandra->delete();
-			$this->_clearCache('confirmpayment.tpl');
-			Tools::redirectAdmin(AdminController::$currentIndex.'&configure='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules'));
-		}
-		else
-		{
-			$this->html .= $this->renderList();
-			return $this->html;
-		}
-	}
+        if ($this->action == 'select_delete') {
+            $this->context->smarty->assign(array(
+                'delete_form' => true,
+                'url_delete' => htmlentities($_SERVER['REQUEST_URI']),
+                'boxes' => $this->boxes,
+            ));
+        }
 
+        if (!$this->can_add_confirmpayment && !$this->display) {
+            $this->informations[] = $this->l('testing');
+        }
 
+        parent::initContent();
+    }
 
 	public function processSaveConfirmPayment()
 	{
@@ -76,6 +75,7 @@ class AdminConfirmPaymentController extends ModuleAdminController
 		else
 		{
 			$chandra = new TableConfirmPayment();
+
 		}
 
 		$chandra->id_confirmpayment = Tools::getValue('id_confirmpayment');
@@ -83,23 +83,52 @@ class AdminConfirmPaymentController extends ModuleAdminController
 		$chandra->nama_bank = Tools::getValue('nama_bank');
 		$chandra->no_rek = Tools::getValue('no_rek');
 		$chandra->reg_account_bank = Tools::getValue('reg_account_bank');
-		// $chandra->data_rek = Tools::getValue('data_rek');
+		$chandra->data_rek = Tools::getValue('data_rek');
 		$chandra->payment = Tools::getValue('payment');
 		$chandra->payment_date = Tools::getValue('payment_date');
 		$chandra->notes = Tools::getValue('notes');
+		$chandra->state = Tools::getValue('state');
 
 		$saved = $chandra->save();
-		if ($saved)
-			$this->_clearCache('confirmpayment.tpl');
-		else
-			$this->html .= '<div class="alert alert-danger conf error">'.$this->l('An error occurred while attempting to save.').'</div>';
+		// if ($saved)
+		// 	$this->_clearCache('confirmpayment.tpl');
+		// else
+		// 	$this->html .= '<div class="alert alert-danger conf error">'.$this->l('An error occurred while attempting to save.').'</div>';
 
-		return $saved;
+        return $saved;
+
+	
 	}
+    public function initToolbar()
+    {
+        parent::initToolbar();
+        if (!$this->can_add_confirmpayment) {
+            unset($this->toolbar_btn['new']);
+        } elseif (!$this->display && $this->can_import) {
+            $this->toolbar_btn['import'] = array(
+                'href' => $this->context->link->getAdminLink('AdminImport', true).'&import_type=confirmpayment',
+                'desc' => $this->l('Import')
+            );
+        }
+    }
 
-	public function renderForm()
-	{
-		$options = array(
+
+    public function getList($id_lang, $orderBy = null, $orderWay = null, $start = 0, $limit = null, $id_lang_shop = null)
+    {
+        parent::getList($id_lang, $orderBy, $orderWay, $start, $limit, $id_lang_shop);
+
+        if ($this->_list) {
+            foreach ($this->_list as &$row) {
+                $row['badge_success'] = $row['total_spent'] > 0;
+            }
+        }
+    }
+
+
+    public function renderForm()
+    {
+        
+        $options = array(
 		  array(
 		    'id_option' => 'BANK PERMATA',
 		    'name' => 'BANK PERMATA'
@@ -110,6 +139,34 @@ class AdminConfirmPaymentController extends ModuleAdminController
 		  ),
 		);
 		
+		$state = array(
+		  array(
+		    'id_state' => 'WAITING',
+		    'name' => 'WAITING'
+		  ),
+		  array(
+		    'id_state' => 'PAID',
+		    'name' => 'PAID'
+		  ),
+		  array(
+		    'id_state' => 'POSTPONE',
+		    'name' => 'POSTPONE'
+		  ),
+		  array(
+		    'id_state' => 'CANCEL',
+		    'name' => 'CANCEL'
+		  ),
+		);
+
+		$sql = 'SELECT r.`id_order`,r.`reference`
+			FROM `'._DB_PREFIX_.'orders` r';
+
+		$data = Db::getInstance()->executeS($sql);
+
+		$list = array();
+		foreach ($data as $value) {
+			$list[] = ['id_order'=>$value['id_order'],'reference'=>$value['reference']];
+		}
 
 		$fields_form = array(
 			'tinymce' => true,
@@ -121,24 +178,22 @@ class AdminConfirmPaymentController extends ModuleAdminController
 					'type' => 'hidden',
 					'name' => 'id_confirmpayment'
 				),
-				
-				'id_order' => array(
-					'type' => 'text',
-					'label' => 'Order',
-					'name' => 'id_order',
-					'required'=>true
+				'id_order' =>array(
+				  'type' => 'select',                              
+				  'label' => $this->l('Order'),         
+				  'desc' => $this->l('Choose Order'),  
+				  'name' => 'id_order',                     
+				  'required' => true,                              
+				  'options' => array(
+					    'query' => $list,                           
+					    'id' => 'id_order',                           
+					    'name' => 'reference'                               
+				  )
 				),
-
 				'nama_bank' => array(
 					'type' => 'text',
 					'label' => 'Nama Bank',
 					'name' => 'nama_bank',
-					'required'=>true
-				),
-				'no_rek' => array(
-					'type' => 'text',
-					'label' => 'No Rekening',
-					'name' => 'no_rek',
 					'required'=>true
 				),
 				'reg_account_bank' => array(
@@ -180,24 +235,40 @@ class AdminConfirmPaymentController extends ModuleAdminController
 					'class' => 'rte',
 					'autoload_rte' => true,
 				),
+				'state' =>array(
+				  'type' => 'select',                              
+				  'label' => 'WAITING',         
+				  'desc' => $this->l('Choose State Konfirmasi Pembayaran'),  
+				  'name' => 'state',                     
+				  'required' => true,                              
+				  'options' => array(
+					    'query' => $state,                           
+					    'id' => 'id_state',                           
+					    'name' => 'name'                               
+				  )
+				),
 			),
 			'submit' => array(
 				'title' => $this->l('Save'),
 			),
 			'buttons' => array(
 				array(
-					'href' => AdminController::$currentIndex.'&configure='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules'),
+					'href' => AdminController::$currentIndex.'&configure='.$this->name.'&token='.$this->token,
 					'title' => $this->l('Back to list'),
 					'icon' => 'process-icon-back'
 				)
 			)
 		);
 
-		$helper = new HelperForm();
+        $this->fields_form['submit'] = array(
+            'title' => $this->l('Save'),
+        );
+
+        $helper = new HelperForm();
 		$helper->module = $this;
 		$helper->name_controller = 'confirmpayment';
 		$helper->identifier = $this->identifier;
-		$helper->token = Tools::getAdminTokenLite('AdminModules');
+		$helper->token = $this->token;
 		$helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
 		$helper->toolbar_scroll = true;
 		$helper->title = $this->displayName;
@@ -206,7 +277,10 @@ class AdminConfirmPaymentController extends ModuleAdminController
 		$helper->fields_value = $this->getFormValues();
 
 		return $helper->generateForm(array(array('form' => $fields_form)));
-	}
+
+        return parent::renderForm();
+    }
+
 
 	public function getFormValues()
 	{
@@ -225,6 +299,7 @@ class AdminConfirmPaymentController extends ModuleAdminController
 			$fields_value['payment'] = $chandra->payment;
 			$fields_value['payment_date'] = $chandra->payment_date;
 			$fields_value['notes'] = $chandra->notes;
+			$fields_value['state'] = $chandra->state;
 
 		}
 		else{
@@ -236,15 +311,78 @@ class AdminConfirmPaymentController extends ModuleAdminController
 			$fields_value['payment'] = Tools::getValue('payment');
 			$fields_value['payment_date'] = Tools::getValue('payment_date');
 			$fields_value['notes'] = Tools::getValue('notes');
+			$fields_value['state'] = Tools::getValue('state');
 		}
-				
-
 		$fields_value['id_confirmpayment'] = $id_confirmpayment;
 
 		return $fields_value;
 	}
 
-	public function renderList()
+
+
+    public function processDelete()
+    {
+        $this->_setDeletedMode();
+        parent::processDelete();
+    }
+
+
+    protected function _setDeletedMode()
+    {
+        if ($this->delete_mode == 'real') {
+            $this->deleted = false;
+        } elseif ($this->delete_mode == 'deleted') {
+            $this->deleted = true;
+        } else {
+            $this->errors[] = Tools::displayError('Unknown delete mode:').' '.$this->deleted;
+            return;
+        }
+    }
+
+
+    protected function processBulkDelete()
+    {
+        $this->_setDeletedMode();
+        parent::processBulkDelete();
+    }
+
+    public function processAdd()
+    {
+        if (Tools::getValue('submitFormAjax')) {
+            $this->redirect_after = false;
+        }
+        $confirmpayment = new TableConfirmPayment();
+        if ($confirmpayment->id) {
+            $this->errors[] = Tools::displayError('An account already exists for this email address:').' '.$customer_email;
+            $this->display = 'edit';
+            return $confirmpayment;
+        } elseif ($confirmpayment = parent::processAdd()) {
+            $this->context->smarty->assign('new_confirmpayment', $confirmpayment);
+            return $confirmpayment;
+        }
+        return false;
+    }
+
+
+	public function processUpdate()
+    {
+    	if (Validate::isLoadedObject($this->object)) {
+            return parent::processUpdate();
+        } else {
+            $this->errors[] = Tools::displayError('An error occurred while loading the object.').'
+				<b>'.$this->table.'</b> '.Tools::displayError('(cannot load object)');
+        }
+    }
+
+    public function processSave()
+    {
+        $confirmpayment = new TableConfirmPayment();
+        $this->errors = array_merge($this->errors, $confirmpayment->validateFieldsRequiredDatabase());
+
+        return parent::processSave();
+    }
+
+    public function renderList()
 	{
 		$this->fields_list = array();
 		$this->fields_list['id_order'] = array(
@@ -255,12 +393,6 @@ class AdminConfirmPaymentController extends ModuleAdminController
 			);
 		$this->fields_list['nama_bank'] = array(
 				'title' => $this->l('Nama Bank'),
-				'type' => 'text',
-				'search' => true,
-				'orderby' => true,
-			);
-		$this->fields_list['no_rek'] = array(
-				'title' => $this->l('No Rekening'),
 				'type' => 'text',
 				'search' => true,
 				'orderby' => true,
@@ -277,22 +409,27 @@ class AdminConfirmPaymentController extends ModuleAdminController
 				'search' => true,
 				'orderby' => true,
 			);
+		$this->fields_list['state'] = array(
+				'title' => $this->l('State'),
+				'type' => 'text',
+				'search' => true,
+				'orderby' => true,
+			);
 
 		$helper = new HelperList();
 		$helper->shopLinkType = '';
 		$helper->simple_header = false;
 		$helper->identifier = 'id_confirmpayment';
-		$helper->actions = array('edit', 'delete');
+		$helper->actions = array('edit', 'delete','view');
 		$helper->show_toolbar = true;
 		$helper->imageType = 'jpg';
 		$helper->toolbar_btn['new'] = array(
-			'href' => AdminController::$currentIndex.'&configure='.$this->name.'&add'.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules'),
+			'href' => AdminController::$currentIndex.'&configure='.$this->name.'&add'.$this->name.'&token='.$this->token,
 			'desc' => $this->l('Add new')
 		);
-
 		$helper->title = $this->displayName;
 		$helper->table = $this->name;
-		$helper->token = Tools::getAdminTokenLite('AdminModules');
+		$helper->token = $this->token;
 		$helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
 
 		$content = $this->getListContent();
@@ -302,13 +439,12 @@ class AdminConfirmPaymentController extends ModuleAdminController
 
 	public function getListContent()
 	{
-		$sql = 'SELECT r.`id_confirmpayment`,r.`id_order`, r.`nama_bank`, r.`no_rek`, r.`data_rek`, r.`payment_date`
+		$sql = 'SELECT r.`id_confirmpayment`,r.`id_order`, r.`nama_bank`, r.`no_rek`, r.`data_rek`, r.`payment_date`,r.`state`
 			FROM `'._DB_PREFIX_.'confirmpayment` r';
 
 		$content = Db::getInstance()->executeS($sql);
 		return $content;
 	}
-
 }
 
 ?>

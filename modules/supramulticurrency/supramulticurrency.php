@@ -198,7 +198,7 @@
 	            if ($default_currency->id == $currency['id_currency']) continue;
 	            $data.= '<option value="' . $currency['id_currency'] . '"' . 'sign="' . $currency['sign'] . '">' . $currency['name'] . '</option>';
 	        endforeach;
-	        $data .= '</select></td>'. '<td><div id="selected_currency_sign" style="font-size:13em; position:absolute;  margin-left: -178px; margin-top: 0.8em; font-weight:bolder; float:left; color:#ccc">£</div></td>'. '<td></td></tr></table></div><div class="clear clearfix"></div><hr/>';
+	        $data .= '</select></td>'. '<td><div id="selected_currency_sign" style="font-size:13em; position:absolute;  margin-left: -178px; margin-top: 0.8em; font-weight:bolder; float:left; color:#ccc">Rp</div></td>'. '<td></td></tr></table></div><div class="clear clearfix"></div><hr/>';
 	        return $data;
     	}
 
@@ -236,8 +236,6 @@
 	        																	' . pSQL((float)$sbm_product["product_sale_price"]) . '
 	        																	);');
 	    }
-	    
-
 	    public function updateMultiCurrencyProduct($sbm_product) {
 	        $q = 'UPDATE  `' . _DB_PREFIX_ . 'supramulticurrency_product` SET 
 	        								`id_currency` =  ' . pSQL($sbm_product["id_currency"]) . ',
@@ -247,8 +245,6 @@
 	        Db::getInstance()->execute($q);
 	        return;
 	    }
-
-	    
 
 	    public function priceRound($value) {
 	        if ($this->round == 'none') return round($value, 8);
@@ -265,7 +261,6 @@
 	        $new_product_sale_price = (float)$product_sbm['product_sale_price'] * ($def_currency->conversion_rate / $sbm_currency->conversion_rate);
 	        $new_product_price = (float)$this->priceRound($new_product_price);
 	        $new_product_sale_price = (float)$this->priceRound($new_product_sale_price);
-
 	        $sql1 = "UPDATE `" . _DB_PREFIX_ . "product` SET 
 	        								`price` = " . $new_product_price . ", 
 	        								`wholesale_price` = " . $new_product_sale_price . " 

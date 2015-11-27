@@ -3225,6 +3225,8 @@ class CartCore extends ObjectModel
                 unset($cart_rules[$key]);
             }
         }
+        
+        $base_total_tax_inc = current(explode(".", $base_total_tax_inc));
 
         $summary = array(
             'delivery' => $delivery,
